@@ -11,7 +11,7 @@
 %   Qian Yu, Mohammad Maddah-Ali, and Salman Avestimehr. Polynomial codes: 
 %   an optimal design for highdimensional coded matrix multiplication. 
 %   In Proc. of Advances in Neural Information Processing Systems
-%   (NIPS), pages 4403–4413, 2017
+%   (NIPS), pages 4403â€“4413, 2017
 
 clc
 close all
