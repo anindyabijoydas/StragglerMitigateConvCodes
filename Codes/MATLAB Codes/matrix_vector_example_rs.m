@@ -4,6 +4,14 @@
 %   Storage fraction gamma = 1/k ; where k = n - s; and set Delta = k.
 %   Matrix A is divided into Delta block columns.
 %   We choose n nodes uniformly spaced in [-1,1], instead of the integers.
+%
+%
+%   This code uses the approach of the following paper-
+%
+%   Qian Yu, Mohammad Maddah-Ali, and Salman Avestimehr. Polynomial codes: 
+%   an optimal design for highdimensional coded matrix multiplication. 
+%   In Proc. of Advances in Neural Information Processing Systems
+%   (NIPS), pages 4403–4413, 2017
 
 clc
 close all

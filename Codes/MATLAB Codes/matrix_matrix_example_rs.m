@@ -6,6 +6,14 @@
 %   Matrices A and B are divided into DeltaA and DeltaB block columns.
 %   We choose n nodes uniformly spaced in [-1,1].
 %   Set worst_case = 1 to find the error in the worst_case scenario.
+%
+%   This code uses the approach of the following paper-
+%
+%   Qian Yu, Mohammad Maddah-Ali, and Salman Avestimehr. Polynomial codes: 
+%   an optimal design for highdimensional coded matrix multiplication. 
+%   In Proc. of Advances in Neural Information Processing Systems
+%   (NIPS), pages 4403–4413, 2017
+
 
 clc
 close all
