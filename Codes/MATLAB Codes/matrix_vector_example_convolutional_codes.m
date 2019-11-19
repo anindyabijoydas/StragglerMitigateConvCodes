@@ -241,15 +241,14 @@ else                            %% Peeling Decoder for all 1's
         for i=1:length(ind2)
             aa = AA(ind2(i),:);
             bb = find(aa~=0);
-            res2(bb,:) = BB(ind2(i),:)/aa(bb);
-            [cc,dd] = size(AA);
-            for j=1:cc
-                if AA(j,bb)~=0
-                    BB(j,:) = BB(j,:) - res2(bb,:);
-                    AA(j,bb) = 0;
-                end
-            end
+            res2(bb,:) = BB(ind2(i),:);
+            [cc,~] = size(AA);
+            dd = AA(:,bb);
+            ee = find(dd~=0);
+            BB(ee,:) = BB(ee,:)-res2(bb,:);
+            AA(ee,bb)=0;
         end
+        
         AA(ind2,:)=[];
         BB(ind2,:)=[];
         ind1=[];
