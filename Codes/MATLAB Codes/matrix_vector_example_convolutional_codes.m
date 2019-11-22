@@ -220,10 +220,6 @@ else                            %% Peeling Decoder for all 1's
     zer_rows = find(all(AA==0,2));
     AA(zer_rows,:)=[];
     BB(zer_rows,:)=[];
-    [~,imp_rows] = unique(AA,'rows');
-    imp_rows = sort(imp_rows);
-    AA = AA(imp_rows,:);
-    BB = BB(imp_rows,:);
     
     while any(AA(:))
         [~,imp_rows] = unique(AA,'rows');       %% removing the unique rows
