@@ -31,7 +31,11 @@ x = randn(t,1);
 b = A'*x;
 SNR = 50;
 random = 1;                                    %% set 1 to choose random coefficients.
-no_trials = 20;                                 %% number of trials, if random = 1
+peeling = 0;
+if random == 0
+    peeling = 1;                                %% Peeling decoder for all 1's case
+end
+no_trials = 2;                                 %% number of trials, if random = 1
 dist = 'rand';                                 %% distribution, 'rand' or 'unif'
 worst_case = 1;                                %% set 1 to find the worst case error.
 if worst_case ~= 1
@@ -147,56 +151,56 @@ end
 %%%%%%%% Decoding Starts in Master Node %%%%%
 
 tic
-if random == 1                                              %% LS Decoding for random convolutional coding
-    amw = active_workers(active_workers<=k);
-    apw = active_workers(active_workers>k);
-    
-    res = zeros(c*q,k);
-    for i = 1:length(amw)
-        for j = 1:q
-            res((j-1)*c+1:j*c,amw(i)) = W3{amw(i)}{j};      %% getting the values from the systematic part
-        end
+
+amw = active_workers(active_workers<=k);
+apw = active_workers(active_workers>k);
+
+res = zeros(c*q,k);
+for i = 1:length(amw)
+    for j = 1:q
+        res((j-1)*c+1:j*c,amw(i)) = W3{amw(i)}{j};      %% getting the values from the systematic part
     end
-    
-    for i = k+1:n
-        if ~ismember(i,apw), continue; end
-        len = q + (k-1)*(i-k-1);
-        for j =1:len
-            sumA = zeros(c,1);
-            for rr = 1:k
-                if ~ismember(rr,amw), continue; end
-                if j >= (i-k-1)*(rr-1)+1 && j <= (i-k-1)*(rr-1)+q
-                    sumA  = sumA + W3{rr}{j-(i-k-1)*(rr-1)}* full_mat(rr,i);
-                end
-            end
-            W3{i}{j} = W3{i}{j} - sumA;
-        end
-    end
-    
-    Coding_matrix = [];
-    for j = 1:length(apw)
-        Coding_matrix = [Coding_matrix ; W{active_workers(length(amw)+j)}];
-    end
-    
-    [xx,yy] = size(Coding_matrix);
-    if xx>0
-        for i =1:k
-            if ismember(i,amw)
-                Coding_matrix(:,(i-1)*q+1:i*q)=0;
+end
+
+for i = k+1:n
+    if ~ismember(i,apw), continue; end
+    len = q + (k-1)*(i-k-1);
+    for j =1:len
+        sumA = zeros(c,1);
+        for rr = 1:k
+            if ~ismember(rr,amw), continue; end
+            if j >= (i-k-1)*(rr-1)+1 && j <= (i-k-1)*(rr-1)+q
+                sumA  = sumA + W3{rr}{j-(i-k-1)*(rr-1)}* full_mat(rr,i);
             end
         end
+        W3{i}{j} = W3{i}{j} - sumA;
     end
+end
+
+Coding_matrix = [];
+for j = 1:length(apw)
+    Coding_matrix = [Coding_matrix ; W{active_workers(length(amw)+j)}];
+end
+
+[xx,yy] = size(Coding_matrix);
+if xx>0
+    for i =1:k
+        if ismember(i,amw)
+            Coding_matrix(:,(i-1)*q+1:i*q)=0;
+        end
+    end
+end
+output_worker = [];
+for i=1:length(apw)
+    [~,len]=size(W3{active_workers(length(amw)+i)});
+    for j=1:len
+        output_worker = [output_worker;W3{active_workers(length(amw)+i)}{j}'];
+    end
+end
+fprintf('\n');
+
+if peeling == 0                                       %% LS Decoding for random convolutional coding
     Coding_matrix(:,~any(Coding_matrix,1))=[];
-    
-    output_worker = [];
-    for i=1:length(apw)
-        [~,len]=size(W3{active_workers(length(amw)+i)});
-        for j=1:len
-            output_worker = [output_worker;W3{active_workers(length(amw)+i)}{j}'];
-        end
-    end
-    fprintf('\n');
-    
     res2 = sparse(Coding_matrix)\output_worker;       %% results from the parity parts using LS
     res_trans = res2';
     coded_res = res_trans(:);
@@ -208,58 +212,48 @@ if random == 1                                              %% LS Decoding for r
             res(:,i) = coded_res((count-1)*c*q+1:count*c*q);
         end
     end
+    
 else                            %% Peeling Decoder for all 1's
-    Coding_matrix = [];
-    for j = 1:k
-        Coding_matrix = [Coding_matrix ; W{active_workers(j)}];
-    end
-    
-    output_worker = [];
-    for i=1:k
-        [~,len]=size(W3{active_workers(i)});
-        for j=1:len
-            output_worker = [output_worker;W3{active_workers(i)}{j}'];
-        end
-    end
-    fprintf('\n');
-    
+    res2 = (reshape(res(:),[c,Delta]))';
     AA = Coding_matrix;
     BB = output_worker;
-    [~,f1] = size(Coding_matrix);
-    [~,f2] = size(output_worker);
-    res2 = zeros(f1,f2);
+    zer_rows = find(all(AA==0,2));
+    AA(zer_rows,:)=[];
+    BB(zer_rows,:)=[];
+    [~,imp_rows] = unique(AA,'rows');
+    imp_rows = sort(imp_rows);
+    AA = AA(imp_rows,:);
+    BB = BB(imp_rows,:);
     
     while any(AA(:))
-        [~,imp_rows] = unique(AA,'rows');
+        [~,imp_rows] = unique(AA,'rows');       %% removing the unique rows
         imp_rows = sort(imp_rows);
         AA = AA(imp_rows,:);
         BB = BB(imp_rows,:);
         
-        ind1 = sum(AA~=0,2);
+        [u,v] = size(AA);
+        ind1 = sum(AA~=0,2);                    %% Finding the rows with single unknown
         ind2 = find(ind1==1);
-        
-        for i=1:length(ind2)
-            aa = AA(ind2(i),:);
-            bb = find(aa~=0);
-            res2(bb,:) = BB(ind2(i),:);
-            dd = AA(:,bb);
-            ee = find(dd~=0);
-            BB(ee,:) = BB(ee,:)-res2(bb,:);
-            AA(ee,bb)=0;
+        [aa,bb] = find(AA(ind2,:)~=0);
+        [aa,ij] = sort(aa);
+        bb = bb(ij);
+        res2(bb,:) = BB(ind2,:);                %% Recovering unknowns
+        [ee,ff] = find(AA(:,bb)~=0);
+        for ii = 1:length(ee)
+            BB(ee(ii),:) = BB(ee(ii),:)- res2(bb(ff(ii)),:);
         end
         
-        AA(ind2,:)=[];
+        AA(ee,bb(ff))=0;
+        AA(ind2,:)=[];                          %% Removing the already used rows
         BB(ind2,:)=[];
-        ind1=[];
-        ind2=[];
     end
     res = res2';
 end
 
 final_result = res(:);
-decoding_time = toc; 
+decoding_time = toc;
 disp(['The decoding time is ', num2str(decoding_time),'seconds.']);
 err_ls = 100*(norm(final_result-b,'fro')/norm(b,'fro'))^2;
-fprintf('\n'); 
+fprintf('\n');
 disp(['The error is ', num2str(err_ls),' % .']);
 fprintf('\n');
