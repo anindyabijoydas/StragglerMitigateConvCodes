@@ -45,7 +45,7 @@ SNR = 100;
 normE=norm(E,'fro');
 
 random = 0;                                    %% set 1 to choose random coefficients.
-no_trials = 10;                                %% number of trials, if random = 1
+no_trials = 20;                                %% number of trials, if random = 1
 dist = 'rand';                                 %% distribution, 'rand' or 'unif'
 worst_case = 1;                                %% set 1 to find the worst case error.
 peeling = 0;
