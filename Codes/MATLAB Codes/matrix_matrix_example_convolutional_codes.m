@@ -12,7 +12,6 @@
 %   Set dist = 'rand' if you want the coefficients from standard normal distribution.
 %   One can increase no_trials, which can help to find a better condition number.
 
-
 clc
 close all
 clear
@@ -28,7 +27,7 @@ while(rem(DeltaA,kA)~=0)
     DeltaA = DeltaA + 1;
 end
 
-gammaB = 3/5;                                       %% gammaB needs to be greater than 1/kB
+gammaB = 2/5;                                       %% gammaB needs to be greater than 1/kB
 DeltaB = round((s-1)*(kB-1)/(gammaB - 1/kB));
 while(rem(DeltaB,kB)~=0)
     DeltaB = DeltaB + 1;
@@ -45,11 +44,14 @@ E = A'*B;
 SNR = 100;
 normE=norm(E,'fro');
 
-random = 1;                                    %% set 1 to choose random coefficients.
-no_trials = 25;                                 %% number of trials, if random = 1
-dist = 'unif';                                 %% distribution, 'rand' or 'unif'
+random = 0;                                    %% set 1 to choose random coefficients.
+no_trials = 10;                                %% number of trials, if random = 1
+dist = 'rand';                                 %% distribution, 'rand' or 'unif'
 worst_case = 1;                                %% set 1 to find the worst case error.
-
+peeling = 0;
+if random == 0 
+    peeling = 1;
+end
 if random == 1
     [R_A,R_B,best_cond_min] = matrix_matrix_best_mat(n,kA,kB,gammaB,no_trials,dist);
 else
@@ -218,6 +220,7 @@ end
 fprintf('\n')
 
 %%%%%%% Decoding Starts in the Master Node %%%%%%%%
+tic
 
 amw = active_workers(active_workers<=k);
 apw = active_workers(active_workers>k);
@@ -296,21 +299,46 @@ for i = k+1:n
     end
 end
 
-tic
 
-output_worker = [];
+parity_outputs = [];
 for i=1:length(apw)
-    [~,len]=size(Wab{active_workers(length(amw)+i)});
-    for j=1:len
-        ss = Wab{active_workers(length(amw)+i)}{j}(:);
-        output_worker = [output_worker;ss'];
-    end
+    parity_outputs = [parity_outputs Wab{apw(i)}];
 end
+[~,len]=size(parity_outputs);
+output_worker = (reshape(cell2mat(parity_outputs),[aa*bb,len]))';
 
 zer_rows = find(all(Coding_matrix==0,2));
 Coding_matrix(zer_rows,:)=[];
 output_worker(zer_rows,:)=[];
-res = sparse(Coding_matrix)\output_worker;          %% Obtaining results from Parity Part using LS
+
+if peeling == 0
+    res = sparse(Coding_matrix)\output_worker;          %% Obtaining results from Parity Part using LS
+else
+    AA = Coding_matrix;
+    BB = output_worker;
+    res = zeros((k-length(amw))*qA*qB,aa*bb);
+    
+    while any(AA(:))
+        [~,imp_rows] = unique(AA,'rows');
+        imp_rows = sort(imp_rows);
+        AA = AA(imp_rows,:);
+        BB = BB(imp_rows,:);
+        [u,v] = size(AA);
+        ind1 = sum(AA~=0,2);
+        ind2 = find(ind1==1);
+        [aa1,bb1] = find(AA(ind2,:)~=0);
+        [aa1,ij] = sort(aa1);
+        bb1 = bb1(ij);
+        res(bb1,:) = BB(ind2,:);
+        [ee,ff] = find(AA(:,bb1)~=0);
+        for ii = 1:length(ee)
+            BB(ee(ii),:) = BB(ee(ii),:)- res(bb1(ff(ii)),:);
+        end
+        AA(ee,bb1(ff))=0;
+        AA(ind2,:)=[];
+        BB(ind2,:)=[];
+    end
+end
 
 unknownsA = ceil(unknowns/DeltaB);
 unknownsB = rem(unknowns,DeltaB);
@@ -322,6 +350,7 @@ for ii=1:xx
     c_arr = (unknownsB(ii)-1)*bb+1:unknownsB(ii)*bb;
     final_r(r_arr,c_arr) = cur;
 end
+
 decoding_time = toc;
 disp(['Decoding time is ', num2str(decoding_time),' seconds.']);
 fprintf('\n')
