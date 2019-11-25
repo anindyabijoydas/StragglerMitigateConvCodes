@@ -33,9 +33,9 @@ SNR = 50;
 random = 1;                                    %% set 1 to choose random coefficients.
 peeling = 0;
 if random == 0
-    peeling = 1;                                %% Peeling decoder for all 1's case
+    peeling = 1;                               %% Peeling decoder for all 1's case
 end
-no_trials = 2;                                 %% number of trials, if random = 1
+no_trials = 20;                                %% number of trials, if random = 1
 dist = 'rand';                                 %% distribution, 'rand' or 'unif'
 worst_case = 1;                                %% set 1 to find the worst case error.
 if worst_case ~= 1
