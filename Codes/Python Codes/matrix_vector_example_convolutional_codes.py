@@ -1,6 +1,6 @@
 """
-Finding the worst case error percentage for our proposed scheme
 Having a random matrix A of size (r,t) and a vector x of length t.
+Finding the worst case error percentage for our proposed scheme to find A'x
 We have n workers, s stragglers.
 Storage fraction gamma > 1/k ; where k = n - s; and find Delta.
 Matrix A is divided into Delta block columns, where k divides Delta.
