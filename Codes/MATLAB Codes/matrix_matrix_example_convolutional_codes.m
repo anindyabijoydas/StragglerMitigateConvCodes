@@ -37,15 +37,15 @@ qA = DeltaA/kA;
 qB = DeltaB/kB;
 r = 3000;                                       %% r needs to be a multiple of DeltaA
 t = 2000;
-w = 1800;                                       %% w needs to be a multiple of DeltaB
+w = 3000;                                       %% w needs to be a multiple of DeltaB
 A = randn(t,r);
 B = randn(t,w);
 E = A'*B;
 SNR = 100;
 normE=norm(E,'fro');
 
-random = 0;                                    %% set 1 to choose random coefficients.
-no_trials = 20;                                %% number of trials, if random = 1
+random = 1;                                    %% set 1 to choose random coefficients.
+no_trials = 25;                                %% number of trials, if random = 1
 dist = 'rand';                                 %% distribution, 'rand' or 'unif'
 worst_case = 1;                                %% set 1 to find the worst case error.
 peeling = 0;
@@ -312,32 +312,34 @@ Coding_matrix(zer_rows,:)=[];
 output_worker(zer_rows,:)=[];
 
 if peeling == 0
-    res = sparse(Coding_matrix)\output_worker;          %% Obtaining results from Parity Part using LS
+    res = Coding_matrix\output_worker;          %% Obtaining results from Parity Part using LS
 else
     AA = Coding_matrix;
     BB = output_worker;
     res = zeros((k-length(amw))*qA*qB,aa*bb);
     
-    while any(AA(:))
-        [~,imp_rows] = unique(AA,'rows');
-        imp_rows = sort(imp_rows);
-        AA = AA(imp_rows,:);
-        BB = BB(imp_rows,:);
-        [u,v] = size(AA);
-        ind1 = sum(AA~=0,2);
+    while any(AA(:))       
+        ind1 = sum(AA,2);
         ind2 = find(ind1==1);
         [aa1,bb1] = find(AA(ind2,:)~=0);
         [aa1,ij] = sort(aa1);
         bb1 = bb1(ij);
-        res(bb1,:) = BB(ind2,:);
+        [~,imp_rows] = unique(bb1,'rows');
+        bb1 = bb1(imp_rows);
+        res(bb1,:) = BB(ind2(imp_rows),:);
         [ee,ff] = find(AA(:,bb1)~=0);
-        for ii = 1:length(ee)
-            BB(ee(ii),:) = BB(ee(ii),:)- res(bb1(ff(ii)),:);
+        [~,imp_rows] = unique(ee,'rows');
+        BB(ee(imp_rows),:) = BB(ee(imp_rows),:)- res(bb1(ff(imp_rows)),:);
+        ee2 = setdiff(1:length(ee),imp_rows);
+        
+        for ii = 1:length(ee2)
+            gg = ee2(ii);
+            BB(ee(gg),:) = BB(ee(gg),:)- res(bb1(ff(gg)),:);
         end
+        
         AA(ee,bb1(ff))=0;
-        AA(ind2,:)=[];
-        BB(ind2,:)=[];
     end
+    
 end
 
 unknownsA = ceil(unknowns/DeltaB);
