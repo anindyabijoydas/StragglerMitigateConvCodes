@@ -15,6 +15,7 @@ import numpy as np
 import itertools as it
 import scipy as sp
 import time
+from scipy.sparse import csr_matrix
 
 def shiftrow(A,r,t):   
     (a,b) = np.shape(A) ;
@@ -106,7 +107,7 @@ qB = int(DeltaB/kB) ;
 print("\nDelta for B is %s " % (DeltaB))
 r = 3000 ;                                          ## needs to be a multiple of DeltaA
 t = 2000 ;
-w = 1000 ;                                          ## needs to be a multiple of DeltaB
+w = 3000 ;                                          ## needs to be a multiple of DeltaB
 mu = 0;
 sigma = 2;
 A = np.random.normal(mu, sigma, [t,r]);
@@ -132,7 +133,7 @@ if worst_case !=1:
     all_workers = np.random.permutation(n);
     active_workers = all_workers[0:k];
     active_workers.sort() ;
-    print(active_workers)
+    print('\nActive workers are %s' %active_workers)   
 
 aa = int(r/DeltaA);
 Wa = {};
@@ -220,19 +221,9 @@ for i in range (0,n):
 P = {};
 for i in range (0,n):
     [la1,la2]=np.shape(M_A[i]);
-    for j in range(0,la1):
-        [lb1,lb2]=np.shape(M_B[i]);
-        for mm in range (0,lb1):
-            if j+mm > 0:
-                dd2 = np.zeros((DeltaA*DeltaB,1),dtype=float)
-                kr = np.kron(M_A[i][j,:],M_B[i][mm,:]);
-                dd2[:,0]=kr;
-                P[i] = np.concatenate((P[i], dd2),axis=1);
-            else:
-                GG = np.kron(M_A[i][0,:],M_B[i][0,:]);
-                dd1 = np.zeros((DeltaA*DeltaB,1),dtype=float);
-                dd1[:,0] = GG;
-                P[i] = dd1;
+    [lb1,lb2]=np.shape(M_B[i]);
+    P[i] = np.hstack((np.vstack(np.kron(M_A[i][j,:],M_B[i][mm,:]) for mm in range(0,lb1))).T for j in range(0,la1))
+    
 Wab = {};
 for i in range (0,n):
     ind = 0;
@@ -297,9 +288,7 @@ for  ii in range (0,np.size(amw)):
             ind = ind+1;
 
 if np.size(apw)>0:
-    Coding_matrix = np.transpose(P[active_workers[np.size(amw)]]);
-    for j in range (1,np.size(apw)):
-        Coding_matrix = np.concatenate((Coding_matrix, np.transpose(P[active_workers[np.size(amw)+j]])), axis = 0) ;    
+    Coding_matrix = np.vstack(np.transpose(P[active_workers[np.size(amw)+j]]) for j in range(0,np.size(apw)))
 
 [xx,yy]=np.shape(Coding_matrix)
 if xx > 0:
@@ -347,52 +336,44 @@ for i in range (0,np.size(apw)):
     lenA = qA + (kA - 1)*(apw[i]-k);
     lenB = qB + (kB - 1)*(apw[i]-k);
     lenAB = lenA * lenB;
-    for j in range (0,lenAB):
-        ss = Wab[active_workers[np.size(amw)+i],j];
-        ss = np.transpose(np.reshape(ss, (aa*bb, 1)))
-        if i==0 and j==0:
-            output_worker = ss;
-        else:
-            output_worker = np.concatenate((output_worker,ss),axis = 0)
+    ss = np.vstack(Wab[active_workers[np.size(amw)+i],j] for j in range(0,lenAB))
+    ss = np.reshape(ss, (lenAB,aa*bb))
+    if i==0:
+        output_worker = ss;
+    else:
+        output_worker = np.concatenate((output_worker,ss),axis = 0)
 
-zer_rows = np.where(~Coding_matrix.any(axis=1))[0]
-Coding_matrix = np.delete(Coding_matrix, zer_rows, axis=0)
-output_worker = np.delete(output_worker, zer_rows, axis=0)   
+#zer_rows = np.where(~Coding_matrix.any(axis=1))[0]
+#Coding_matrix = np.delete(Coding_matrix, zer_rows, axis=0)
+#output_worker = np.delete(output_worker, zer_rows, axis=0)   
 
 
 if peeling == 0:                                    ## LS Decoding for random convolutional coding
-    zer_rows = np.where(~Coding_matrix.any(axis=1))[0]
-    Coding_matrix = np.delete(Coding_matrix, zer_rows, axis=0)
-    output_worker = np.delete(output_worker, zer_rows, axis=0)
-    (res, residuals, rank, ss) = np.linalg.lstsq(Coding_matrix, output_worker,rcond=None)
+    CC = np.matmul(np.transpose(Coding_matrix),Coding_matrix)
+    DD = np.linalg.inv(CC)
+    EE = np.matmul(np.transpose(Coding_matrix),output_worker)
+    res = np.matmul(DD,EE)
     
     
 else:                                               ## Peeling Decoder for all 1's
-    AA = Coding_matrix;
+    AA = csr_matrix(Coding_matrix);
     BB = output_worker;
     zz = (k-np.size(amw))*qA*qB;
     res = np.zeros((zz,aa*bb),dtype=float);
-    while np.count_nonzero(AA)>0:
-        (_, imp_rows) = np.unique(AA, axis=0,return_index=True);        ## removing the unique rows
-        imp_rows = np.sort(imp_rows)
-        AA = AA[imp_rows,:];
-        BB = BB[imp_rows,:];
-        (u,v) = np.shape(AA);
+    while csr_matrix.count_nonzero(AA)>0:
         ind1 = AA.sum(axis=1);                      ## Finding the rows with single unknown
         ind3 = np.where(ind1==1)
         ind2 = ind3[0];
         (aa1,bb1) = np.nonzero(AA[ind2,:])
         ij = np.argsort(aa1)
         bb1 = bb1[ij];
-        res[bb1,:] = BB[ind2,:];                    ## Recovering unknowns
-        (ee,ff) = np.nonzero(AA[:,bb1])        
-        
+        (_, imp_rows) = np.unique(bb1, axis=0,return_index=True);  
+        bb1 = bb1[imp_rows];
+        res[bb1,:] = BB[ind2[imp_rows],:];                    ## Recovering unknowns
+        (ee,ff) = np.nonzero(AA[:,bb1]);
         for ii in range(0,np.size(ee)):
             BB[ee[ii],:] = BB[ee[ii],:] - res[bb1[ff[ii]],:];
-            
         AA[ee,bb1[ff]] = 0;
-        AA = np.delete(AA, ind2, 0)                 ## Removing the already used rows
-        BB = np.delete(BB, ind2, 0)
 
 unknownsA = np.floor(unknowns/DeltaB)+1;
 unknownsB = np.remainder(unknowns+1,DeltaB);
