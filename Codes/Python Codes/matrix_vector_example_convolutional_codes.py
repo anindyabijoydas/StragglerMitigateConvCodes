@@ -15,6 +15,8 @@ import numpy as np
 from scipy import linalg
 import itertools as it
 import time
+from scipy.sparse import csr_matrix
+
 
 def shiftrow(A,r,t):   
     (a,b) = np.shape(A) ;
@@ -85,8 +87,8 @@ sigma = 1;
 A = np.random.normal(mu, sigma, [t,r]);
 x = np.random.normal(mu, sigma, [t,1]);
 b = np.matmul(np.transpose(A),x);
-random = 0;                                        ## set 1 to choose random coefficients.
-no_trials = 5;                                     ## number of trials, if random = 1
+random = 1;                                        ## set 1 to choose random coefficients.
+no_trials = 25;                                     ## number of trials, if random = 1
 worst_case = 1;                                    ## set 1 to find the worst case error
 
 peeling = 0;
@@ -239,8 +241,9 @@ for i in range (0,np.size(apw)):
 if peeling == 0:                               ## LS Decoding for random convolutional coding
     inter = np.transpose(Coding_matrix);
     Coding_matrix = np.transpose(inter[~np.all(inter == 0, axis=1)])  
+    CC = np.linalg.inv(np.matmul(np.transpose(Coding_matrix),Coding_matrix))
+    res_p = np.matmul(CC,np.matmul(np.transpose(Coding_matrix),output_worker))
     
-    (res_p, residuals, rank, ss) = np.linalg.lstsq(Coding_matrix, output_worker,rcond=None)
     atw = list(range(k));
     aow = [i for i in atw if i not in amw];
     res_p = np.reshape(res_p, (q*c*np.size(aow), 1));
@@ -249,34 +252,25 @@ if peeling == 0:                               ## LS Decoding for random convolu
         res[:,aow[j]] = res_p[j*c*q:(j+1)*c*q].ravel();
 
 else:                                   ## Peeling Decoder for all 1's
-    AA = Coding_matrix;
+    AA = csr_matrix(Coding_matrix);
     BB = output_worker;
     res2 = np.transpose(res);
     res2 = (np.reshape(res2, (Delta,c)));
-    zer_rows = np.where(~AA.any(axis=1))[0]
-    AA = np.delete(AA, zer_rows, axis=0)
-    BB = np.delete(BB, zer_rows, axis=0)
-    while np.count_nonzero(AA)>0:
-        (_, imp_rows) = np.unique(AA, axis=0,return_index=True);        ## removing the unique rows
-        imp_rows = np.sort(imp_rows)
-        AA = AA[imp_rows,:];
-        BB = BB[imp_rows,:];
-        (u,v) = np.shape(AA);
+    while csr_matrix.count_nonzero(AA)>0:
         ind1 = AA.sum(axis=1);                      ## Finding the rows with single unknown
         ind3 = np.where(ind1==1)
         ind2 = ind3[0];
         (aa,bb) = np.nonzero(AA[ind2,:])
         ij = np.argsort(aa)
         bb = bb[ij];
-        res2[bb,:] = BB[ind2,:];                    ## Recovering unknowns
+        (_, imp_rows) = np.unique(bb, axis=0,return_index=True);  
+        bb = bb[imp_rows];
+        res2[bb,:] = BB[ind2[imp_rows],:];                    ## Recovering unknowns
         (ee,ff) = np.nonzero(AA[:,bb])        
-        
         for ii in range(0,np.size(ee)):
             BB[ee[ii],:] = BB[ee[ii],:] - res2[bb[ff[ii]],:];
             
         AA[ee,bb[ff]] = 0;
-        AA = np.delete(AA, ind2, 0)                 ## Removing the already used rows
-        BB = np.delete(BB, ind2, 0)
 
     res = np.transpose(res2);
 
