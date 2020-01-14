@@ -1,6 +1,6 @@
 """
 Having random matrices A and B of size (t,r) and (t,w), respectively.
-Finding the worst case error percentage for our proposed scheme to get A'B
+Finding the worst case error percentage for our proposed scheme to get A' times B
 We have n workers, s = n - kA*kB stragglers.
 Storage fraction gammaA > 1/kA and gammaB > 1/kB.
 Matrix A is divided into DeltaA block columns, where kA divides DeltaA.
@@ -13,9 +13,15 @@ One can increase no_trials, which can help to find a better condition number.
 """
 import numpy as np
 import itertools as it
-import scipy as sp
 import time
 from scipy.sparse import csr_matrix
+from scipy.linalg import eigvals
+
+import sys
+import warnings
+
+if not sys.warnoptions:
+    warnings.simplefilter("ignore")
 
 def shiftrow(A,r,t):   
     (a,b) = np.shape(A) ;
@@ -74,7 +80,7 @@ def matrix_matrix_best_mat(n,kA,kB,gammaB,no_trials):
                 Coding_matrix = Generator_mat[:,kk];
                 Coding_matrixT = np.transpose(Coding_matrix);
                 D = np.matmul(np.conjugate(Coding_matrixT),Coding_matrix);
-                eigenvalues = sp.linalg.eigvals(D);
+                eigenvalues = eigvals(D);
                 eigenvalues = np.real(eigenvalues);
                 min_eigenvalue[ind] = np.min(eigenvalues);
                 max_eigenvalue[ind] = np.max(eigenvalues);
@@ -342,11 +348,6 @@ for i in range (0,np.size(apw)):
         output_worker = ss;
     else:
         output_worker = np.concatenate((output_worker,ss),axis = 0)
-
-#zer_rows = np.where(~Coding_matrix.any(axis=1))[0]
-#Coding_matrix = np.delete(Coding_matrix, zer_rows, axis=0)
-#output_worker = np.delete(output_worker, zer_rows, axis=0)   
-
 
 if peeling == 0:                                    ## LS Decoding for random convolutional coding
     CC = np.matmul(np.transpose(Coding_matrix),Coding_matrix)
