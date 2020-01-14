@@ -9,6 +9,12 @@ One can vary SNR to check the scenario at different noise levels.
 Set worst_case = 1 to find the error in the worst_case scenario.
 Worst_condition_number is the maximum condition number in this scheme.
 One can increase no_trials, which can help to find a better condition number.
+
+This code uses the approach of the following paper-
+%   Subramaniam, Adarsh M., Anoosheh Heidarzadeh, and Krishna R. Narayanan. 
+%   "Random Khatri-Rao-Product Codes for Numerically-Stable Distributed Matrix Multiplication." 
+%   In 57th Annual Allerton Conference on Communication, Control, and Computing 
+%   (Allerton), pp. 253-259. IEEE, 2019.
 """
 
 def mat_mat_best_rand(n,kA,kB,no_trials):
