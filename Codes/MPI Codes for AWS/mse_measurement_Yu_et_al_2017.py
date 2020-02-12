@@ -1,5 +1,5 @@
 """
-Finding the worst case error percentage for Polynomial Code
+Finding the worst case error percentage for Polynomial Codes.
 Having a random matrices A and B
 We have n workers, s stragglers.
 Storage fraction gamma = 1/k ; where k = n - s; and set Delta = k.
