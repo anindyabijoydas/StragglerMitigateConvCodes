@@ -1,9 +1,6 @@
-%   Finding the worst case condition number for ortho-poly scheme
+%   Finding the worst case condition number of Ortho-Poly Code
 %   We have n workers and s = n - kA * kB stragglers.
 %   Storage fraction gammaA = 1/kA and gammaB = 1/kB.
-%   Set DeltaA = kA and DeltaB = kB.
-%   Matrices A and B are divided into DeltaA and DeltaB block columns.
-%   We choose n nodes uniformly spaced in [-1,1].
 %
 %   This code uses the approach of the following paper-
 %
@@ -11,13 +8,12 @@
 %   2019 IEEE International Symposium on Information Theory (ISIT), 
 %   Paris, France, 2019, pp. 3017-3021.
 
-
 clc
 close all
 clear
 
-n = 11;                             %% Total Workers
-kA = 3;
+n = 18;                             %% Total Workers
+kA = 5;
 kB = 3;
 k = kA*kB;
 s = n - k;                          %% Total Stragglers
@@ -38,7 +34,6 @@ end
 TA(:,1) = TA(:,1)/sqrt(2);
 TB(:,1) = TB(:,1)/sqrt(2);
 
-
 T = zeros(n,kA*kB);
 for i=1:n
     T(i,:) = kron(TA(i,:),TB(i,:));
@@ -53,7 +48,10 @@ for kk = 1:length(choices)
 end
 worst_cond_no = max(condition_no);
 pos= find(condition_no == worst_cond_no);
+worst_choice_of_workers = choices(pos,:);
 
-fprintf('\n Worst Case condition number is %f \n', worst_cond_no);
-fprintf('\n Worst Case includes workers')
-disp(choices(pos,:));
+M1 = ['The worst case condition number is ', num2str(worst_cond_no),'.'];
+fprintf('\n'); disp(M1);
+M2 = ['The worst case includes workers ', num2str(worst_choice_of_workers),'.'];
+fprintf('\n'); disp(M2);
+fprintf('\n');
