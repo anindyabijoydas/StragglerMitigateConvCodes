@@ -75,9 +75,9 @@ if rank == 0:
     kB = 3;
     k = kA*kB;
     s = n - k ;                                     # Number of stragglers
-    r = 900 ;
-    t = 150 ;
-    w = 900;
+    r = 9000 ;
+    t = 3000 ;
+    w = 6000;
     mu = 0;
     sigma = 1;
     A = np.random.normal(mu, sigma, [t,r]);
